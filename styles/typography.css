@@ -1,0 +1,45 @@
+:root {
+  /* Type scale */
+  --fs-mega: clamp(120px, 28vw, 490px); /* footer wordmark */
+  --fs-display: clamp(42px, 5vw, 70px); /* big CTA H2 */
+  --fs-h1: clamp(26px, 2.6vw, 37px); /* section/hero titles */
+  --fs-card-title: 23px; /* H3 / big stat */
+  --fs-body: 18.7px; /* body/nav/buttons */
+  --fs-caption: 16.3px; /* eyebrow/menu sub */
+  --fs-code: 15.2px; /* mono */
+  --fs-footer-head: 11.7px;
+
+  --lh-tight: 1.1;
+  --lh-heading: 1.2;
+  --lh-body: 1.6;
+
+  --fw-light: 300;
+  --fw-regular: 400;
+
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas,
+    monospace;
+}
+
+body {
+  font-family: var(--font-display);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  letter-spacing: normal;
+  color: var(--text-primary);
+}
+
+h1,
+h2,
+h3 {
+  font-weight: var(--fw-light);
+  letter-spacing: normal;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --fs-card-title: 20px;
+    --fs-body: 16.5px;
+    --fs-caption: 14.5px;
+  }
+}

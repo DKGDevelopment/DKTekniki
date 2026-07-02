@@ -1,0 +1,53 @@
+:root {
+  /* Color */
+  --bg-primary: #121212;
+  --bg-secondary: rgba(255, 255, 255, 0.15);
+  --surface-card: #181818;
+  --surface-card-alt: #222529;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --text-tertiary: rgba(255, 255, 255, 0.25);
+  --text-grey: #9c9d9f;
+  --dim: rgba(255, 255, 255, 0.15);
+  --extra-dim: rgba(255, 255, 255, 0.05);
+  --border-1: #212121;
+  --border-2: #424242;
+
+  /* Accent */
+  --accent: #3d5af1;
+  --accent-light: #7e9bff;
+  --accent-gradient: linear-gradient(135deg, #7e9bff 0%, #3d5af1 100%);
+
+  /* Spacing scale (px) */
+  --space-xs: 14px;
+  --space-s: 28px;
+  --space-m: 47px;
+  --space-l: 70px;
+  --space-xl: 93px;
+  --space-xxl: 233px; /* section vertical rhythm — keep it airy */
+
+  /* Layout */
+  --container-max: 1344px;
+  --grid-cols: 12;
+  --grid-gutter: 37px;
+  --page-margin: 75px;
+  --header-height: 93px;
+
+  /* Radii & borders */
+  --radius-pill: 999px;
+  --radius-card: 18.67px;
+  --border-hairline: 1px solid rgba(255, 255, 255, 0.15);
+
+  /* Motion */
+  --ease-link: color 0.2s ease-out;
+  --ease-ghost: background-color 0.4s cubic-bezier(0.36, 0.2, 0.07, 1);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --space-xxl: 140px;
+    --page-margin: 24px;
+    --grid-gutter: 20px;
+    --header-height: 72px;
+  }
+}

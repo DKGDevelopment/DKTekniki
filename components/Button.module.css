@@ -1,0 +1,44 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 51px;
+  padding: 0 28px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-body);
+  line-height: 1;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.ghost {
+  background-color: rgba(255, 255, 255, 0.15);
+  transition: var(--ease-ghost);
+}
+
+.ghost:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+.primary {
+  background: var(--accent-gradient);
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  transition: background-position 0.4s cubic-bezier(0.36, 0.2, 0.07, 1);
+}
+
+.primary:hover {
+  background-position: 100% 50%;
+}
+
+.arrow {
+  font-size: 0.9em;
+  line-height: 1;
+}
+
+.small {
+  height: 42px;
+  padding: 0 22px;
+  font-size: var(--fs-caption);
+}
