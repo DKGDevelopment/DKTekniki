@@ -19,9 +19,11 @@ const RAMP_STEPS = 9;
 // Light comes from the top-right-front, matching the reference highlight
 const LIGHT = { x: 0.5, y: -0.65, z: 0.57 };
 
-// Cursor spotlight: dots within this screen radius brighten and grow
-const POINTER_RADIUS = 190;
+// Cursor spotlight: dots within this screen radius brighten, grow and
+// gather toward the pointer
+const POINTER_RADIUS = 210;
 const POINTER_EASE = 0.12;
+const GATHER_STRENGTH = 0.55; // 0 = no pull, 1 = dots snap onto the cursor
 
 type Particle = {
   x: number;
@@ -181,27 +183,35 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
         const y = rx * sinTilt + particle.y * cosTilt;
 
         const scale = perspective / (perspective + z);
-        const px = cx + x * radius * scale;
-        const py = cy + y * radius * scale;
-
-        if (px < -20 || px > width + 20 || py < -20 || py > height + 20) {
-          continue;
-        }
+        let px = cx + x * radius * scale;
+        let py = cy + y * radius * scale;
 
         const depth = (1 - z) / 2; // 0 back → 1 front
         // Lambert-ish shading toward the light direction
         const lit = Math.max(0, x * LIGHT.x + y * LIGHT.y + z * LIGHT.z);
 
-        // Cursor spotlight: smooth falloff, front hemisphere reacts most
+        // Cursor spotlight: dots inside the radius brighten AND gather
+        // toward the pointer, with a smooth falloff. Front hemisphere
+        // reacts most.
         let boost = 0;
         if (spotlight) {
-          const dx = px - eased.x;
-          const dy = py - eased.y;
+          const dx = eased.x - px;
+          const dy = eased.y - py;
           const d2 = dx * dx + dy * dy;
           if (d2 < pointerR2) {
             const falloff = 1 - Math.sqrt(d2) / POINTER_RADIUS;
-            boost = falloff * falloff * (0.35 + depth * 0.65);
+            const react = 0.35 + depth * 0.65;
+            boost = falloff * falloff * react;
+            // Pull toward the cursor — strongest up close, so dots
+            // visibly cluster around it while it moves
+            const gather = falloff * falloff * GATHER_STRENGTH * react;
+            px += dx * gather;
+            py += dy * gather;
           }
+        }
+
+        if (px < -20 || px > width + 20 || py < -20 || py > height + 20) {
+          continue;
         }
 
         // Continuous white ↔ electric-blue drift, one sprite per ramp step
