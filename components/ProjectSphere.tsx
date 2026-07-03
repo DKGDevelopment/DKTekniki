@@ -1,13 +1,13 @@
 "use client";
 
 // Slowly rotating 3D sphere of project badges, orbiting the centered
-// constellation heading (Morpho-style). Each badge tries to load
-// /projects/NN.jpg (01–36); until an image exists it shows initials.
+// constellation heading (Morpho-style). Each badge loads
+// /projects/NN.jpg (01–26); until an image loads it shows initials.
 
 import { useEffect, useRef, useState } from "react";
 import styles from "./ProjectSphere.module.css";
 
-const COUNT = 36;
+const COUNT = 26;
 const ROTATION_SPEED = 0.0022; // radians per frame around Y
 
 const PROJECT_NAMES = [
@@ -50,18 +50,29 @@ function buildSpherePoints(count: number) {
 function Badge({ index }: { index: number }) {
   // Initials show until the project image actually loads, so missing
   // images never flash a broken-image icon
+  const imgRef = useRef<HTMLImageElement>(null);
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const src = `/projects/${String(index + 1).padStart(2, "0")}.jpg`;
+
+  // The image may finish loading before hydration attaches onLoad —
+  // check its state once on mount
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img && img.complete) {
+      if (img.naturalWidth > 0) setLoaded(true);
+      else setFailed(true);
+    }
+  }, []);
 
   return (
     <>
       {!failed && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
+          ref={imgRef}
           src={src}
           alt=""
-          loading="lazy"
           style={loaded ? undefined : { display: "none" }}
           onLoad={() => setLoaded(true)}
           onError={() => setFailed(true)}
