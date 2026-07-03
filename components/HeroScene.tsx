@@ -52,9 +52,7 @@ export default function HeroScene() {
             reduceMotion ? undefined : { opacity: heroOpacity, y: heroY }
           }
         >
-          <h1 className={styles.title}>
-            Engineering infrastructure, open to everyone
-          </h1>
+          <h1 className={styles.title}>Engineering Infrastructure</h1>
           <p className={styles.subtitle}>
             DKTekniki is the open platform for building, deploying and scaling
             technical systems — trusted by teams around the world.
