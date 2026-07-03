@@ -65,9 +65,8 @@ export default function HeroScene() {
         >
           <h1 className={styles.title}>Engineering Infrastructure</h1>
           <p className={styles.subtitle}>
-            DK Techniki is the architecture and construction branch of DKG
-            Development — designing, engineering and delivering exceptional
-            buildings, from first sketch to final build.
+            Designing, engineering and delivering exceptional buildings, from
+            first sketch to final build.
           </p>
 
           <div className={styles.stats}>
