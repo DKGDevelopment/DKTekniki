@@ -8,9 +8,9 @@
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 76px;
-  height: 76px;
-  margin: -38px 0 0 -38px;
+  width: 87px;
+  height: 87px;
+  margin: -43.5px 0 0 -43.5px;
   border-radius: 50%;
   overflow: hidden;
   display: flex;
@@ -36,9 +36,9 @@
 
 @media (max-width: 768px) {
   .badge {
-    width: 54px;
-    height: 54px;
-    margin: -27px 0 0 -27px;
+    width: 59px;
+    height: 59px;
+    margin: -29.5px 0 0 -29.5px;
   }
 
   .initials {
