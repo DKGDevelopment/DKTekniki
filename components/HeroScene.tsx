@@ -87,7 +87,8 @@ export default function HeroScene() {
           aria-hidden={!reduceMotion}
         >
           <h2 className={styles.constellationTitle}>
-            Powered by teams building the next generation of infrastructure
+            Driven by experts creating the next generation of architectural
+            spaces.
           </h2>
 
           {BUBBLES.map((bubble, i) => (
