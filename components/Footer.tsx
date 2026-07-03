@@ -2,10 +2,10 @@ import Logo from "./Logo";
 import styles from "./Footer.module.css";
 
 const COLUMNS: Record<string, string[]> = {
-  Products: ["Build", "Deploy", "Monitor", "Pricing"],
-  Resources: ["Documentation", "Blog", "Changelog", "Status"],
-  Company: ["About", "Careers", "Press", "Contact"],
-  Legal: ["Privacy", "Terms", "Security", "Licenses"],
+  Services: ["Architectural Design", "Construction", "Renovation", "Interiors"],
+  Projects: ["Residential", "Commercial", "Mixed-Use", "All Projects"],
+  Company: ["About", "Team", "Careers", "Contact"],
+  Legal: ["Privacy", "Terms", "Licenses"],
 };
 
 export default function Footer() {

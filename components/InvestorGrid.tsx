@@ -1,25 +1,27 @@
 import FadeUp from "./FadeUp";
 import styles from "./InvestorGrid.module.css";
 
-const INVESTORS = [
-  "Northlight Capital",
-  "Aegis Ventures",
-  "Blue Harbor",
-  "Meridian Fund",
-  "Copperfield",
-  "Atlas Partners",
-  "Ionian Growth",
-  "Summit Row",
-  "Fjord Capital",
-  "Argo Ventures",
-  "Lumen Equity",
+/* Placeholder partner names — replace with the real collaborator and
+   supplier network when confirmed. */
+const PARTNERS = [
+  "Domiki Engineering",
+  "Meltemi MEP",
+  "Aegean Contractors",
+  "Lithos Stoneworks",
+  "Fos Lighting Studio",
+  "Verde Landscapes",
+  "Krystal Glazing",
+  "Attika Surveying",
+  "Thermo Energy",
+  "Nomos Planning",
+  "Ergon Steelworks",
 ];
 
 export default function InvestorGrid() {
   return (
     <FadeUp>
       <div className={styles.grid}>
-        {INVESTORS.map((name) => (
+        {PARTNERS.map((name) => (
           <div key={name} className={styles.cell}>
             <span className={styles.logo}>
               <span className={styles.logoMark} aria-hidden="true" />

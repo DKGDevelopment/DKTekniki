@@ -14,20 +14,20 @@ import styles from "./Header.module.css";
 type MenuItem = { title: string; sub: string; href: string };
 
 const MENUS: Record<string, MenuItem[]> = {
-  Products: [
-    { title: "Build", sub: "Design and assemble systems fast", href: "#features" },
-    { title: "Deploy", sub: "Ship to any environment", href: "#features" },
-    { title: "Monitor", sub: "Live observability out of the box", href: "#features" },
+  Services: [
+    { title: "Architectural design", sub: "Concept to construction drawings", href: "#features" },
+    { title: "Construction", sub: "Permits, supervision and delivery", href: "#features" },
+    { title: "Renovation", sub: "Remodelling and restoration", href: "#features" },
   ],
-  Solutions: [
-    { title: "For startups", sub: "Move fast without breaking prod", href: "#features" },
-    { title: "For enterprises", sub: "Scale with guarantees", href: "#trust" },
-    { title: "For agencies", sub: "Deliver for every client", href: "#features" },
+  Projects: [
+    { title: "Residential", sub: "Apartments and developments", href: "#features" },
+    { title: "Commercial", sub: "Offices, retail and hospitality", href: "#features" },
+    { title: "All projects", sub: "The full portfolio", href: "#features" },
   ],
-  Resources: [
-    { title: "Documentation", sub: "Guides and API reference", href: "#open" },
-    { title: "Blog", sub: "Engineering deep dives", href: "#open" },
-    { title: "Community", sub: "Join the conversation", href: "#open" },
+  Company: [
+    { title: "About us", sub: "The DK Techniki story", href: "#trust" },
+    { title: "Our process", sub: "How we design and build", href: "#open" },
+    { title: "Contact", sub: "Start a conversation", href: "#cta" },
   ],
 };
 

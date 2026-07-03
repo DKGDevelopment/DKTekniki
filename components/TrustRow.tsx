@@ -3,19 +3,19 @@ import styles from "./TrustRow.module.css";
 
 const COLUMNS = [
   {
-    title: "Audits",
-    body: "Independently audited by leading security firms, with every report published in full.",
-    chips: ["SecureLab", "AuditWorks", "TrailGuard"],
+    title: "Licensed & certified",
+    body: "Chartered architects and engineers, registered and insured for every discipline we deliver.",
+    chips: ["Technical Chamber (TEE)", "ISO 9001"],
   },
   {
-    title: "Verification",
-    body: "Formally verified core, with continuous fuzzing and public bug bounties.",
-    chips: ["FormalCheck", "FuzzNet"],
+    title: "Built to code",
+    body: "Full compliance with Eurocodes and national energy regulations, engineered in from the first drawing.",
+    chips: ["Eurocodes", "KENAK", "Energy Class A"],
   },
   {
-    title: "Institutional",
-    body: "Compliance-ready controls and SLAs trusted by regulated enterprises.",
-    chips: ["ISO 27001", "SOC 2"],
+    title: "End-to-end delivery",
+    body: "Permits, engineering, site supervision and handover managed under one roof, on one schedule.",
+    chips: ["Permitting", "Site Supervision"],
   },
 ];
 

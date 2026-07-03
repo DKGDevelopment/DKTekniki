@@ -11,21 +11,21 @@ import styles from "./page.module.css";
 
 const FEATURES: Feature[] = [
   {
-    title: "Build on primitives that scale with you",
-    body: "Compose services from audited, production-hardened building blocks. Start small and grow to global scale without re-architecting.",
-    customers: ["Nordkraft", "Vertex Labs", "Kymata", "Heliotrope"],
+    title: "Residential architecture designed around living",
+    body: "From single apartments to full residential developments — homes shaped by light, flow and the way people actually live in them.",
+    customers: ["Elite Living", "New Age Living", "Nuvia Urban Stay", "B-48"],
     visual: "grid",
   },
   {
-    title: "Deploy anywhere, verify everything",
-    body: "Every deployment is reproducible and signed. Roll out to any region with one command and audit the full supply chain.",
-    customers: ["Attiki Systems", "Delta Forge", "Piraeus Cloud"],
+    title: "Commercial and mixed-use spaces that perform",
+    body: "Offices, retail and hospitality designed to work hard for their owners — efficient layouts, strong identity and lasting value.",
+    customers: ["Piraeus Gate", "IMERAS", "Wyndham Mediterranean"],
     visual: "orbit",
   },
   {
-    title: "Observe your whole stack in real time",
-    body: "Metrics, traces and logs unified in a single pane. Alerting that understands your topology, not just your thresholds.",
-    customers: ["Kymata", "Nordkraft", "Delta Forge", "Vertex Labs"],
+    title: "Construction delivered from permit to handover",
+    body: "We supervise what we design. Permitting, engineering and on-site management under one roof, so nothing is lost in translation.",
+    customers: ["B-48", "Elite Living", "IMERAS", "Piraeus Gate"],
     visual: "stack",
   },
 ];
@@ -41,9 +41,9 @@ export default function Home() {
         {/* 3. Feature blocks */}
         <section id="features" className="section container">
           <FadeUp>
-            <p className="eyebrow">What you can build</p>
+            <p className="eyebrow">What we do</p>
             <h2 className={styles.sectionHeading}>
-              Infrastructure that works the way your team does
+              Spaces designed around the people who use them
             </h2>
           </FadeUp>
           {FEATURES.map((feature, i) => (
@@ -67,7 +67,7 @@ export default function Home() {
         {/* 5. Trust row */}
         <section id="trust" className="section container">
           <FadeUp>
-            <p className="eyebrow">Security</p>
+            <p className="eyebrow">Why DK Techniki</p>
             <h2 className={styles.sectionHeading}>
               Trusted where it matters most
             </h2>
@@ -78,9 +78,9 @@ export default function Home() {
         {/* 6. Investor grid */}
         <section id="investors" className="section container">
           <FadeUp>
-            <p className="eyebrow">Backed by</p>
+            <p className="eyebrow">Our network</p>
             <h2 className={styles.sectionHeading}>
-              Supported by world-class investors
+              Delivered with trusted partners across the industry
             </h2>
           </FadeUp>
           <InvestorGrid />
@@ -90,7 +90,7 @@ export default function Home() {
         <section id="cta" className="section container">
           <FadeUp className={styles.cta}>
             <h2 className={styles.ctaHeading}>
-              Start building on DK Techniki today
+              Let&apos;s design your next project together
             </h2>
             <Button href="#" variant="primary" arrow="→">
               Contact us
