@@ -8,7 +8,6 @@ import {
   useMotionValueEvent,
   useScroll,
 } from "framer-motion";
-import Button from "./Button";
 import Logo from "./Logo";
 import styles from "./Header.module.css";
 
@@ -130,14 +129,10 @@ export default function Header() {
             </div>
           ))}
 
-          <Link href="#open" className={styles.navLink}>
-            Docs
+          <Link href="#cta" className={styles.navLink}>
+            Team
           </Link>
         </nav>
-
-        <Button href="#cta" variant="primary" arrow="↗" className={styles.cta}>
-          Launch App
-        </Button>
       </div>
     </motion.header>
   );

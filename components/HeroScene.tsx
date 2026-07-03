@@ -61,9 +61,9 @@ export default function HeroScene() {
           <div className={styles.stats}>
             <div className={styles.stat}>
               <div className={styles.statValue}>
-                <Counter target={2400000000} prefix="$" duration={2} />
+                <Counter target={122000} duration={2} />
               </div>
-              <div className={styles.statLabel}>Total value managed</div>
+              <div className={styles.statLabel}>Total SQM Built</div>
             </div>
 
             <div className={styles.scrollCue} aria-hidden="true">
@@ -72,9 +72,9 @@ export default function HeroScene() {
 
             <div className={styles.stat}>
               <div className={styles.statValue}>
-                <Counter target={18400} suffix="+" duration={2} />
+                <Counter target={1000} suffix="+" duration={2} />
               </div>
-              <div className={styles.statLabel}>Active deployments</div>
+              <div className={styles.statLabel}>Apartments Designed</div>
             </div>
           </div>
         </motion.div>

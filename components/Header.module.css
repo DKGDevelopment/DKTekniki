@@ -93,10 +93,6 @@
   color: var(--text-tertiary);
 }
 
-.cta {
-  flex-shrink: 0;
-}
-
 @media (max-width: 900px) {
   .nav {
     display: none;
