@@ -9,6 +9,7 @@ import {
   useScroll,
 } from "framer-motion";
 import Button from "./Button";
+import Logo from "./Logo";
 import styles from "./Header.module.css";
 
 type MenuItem = { title: string; sub: string; href: string };
@@ -71,9 +72,8 @@ export default function Header() {
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       <div className={`container ${styles.inner}`}>
-        <Link href="/" className={styles.logo} aria-label="DKTekniki home">
-          <span className={styles.logoMark} aria-hidden="true" />
-          DKTekniki
+        <Link href="/" className={styles.logo} aria-label="DK Techniki home">
+          <Logo size={30} />
         </Link>
 
         <nav className={styles.nav} aria-label="Main">

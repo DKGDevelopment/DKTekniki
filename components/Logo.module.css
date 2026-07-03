@@ -1,0 +1,36 @@
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--text-primary);
+}
+
+.mark {
+  flex-shrink: 0;
+  color: var(--text-primary);
+}
+
+.lockup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-size: var(--fs-body);
+  font-weight: var(--fw-regular);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.tagline {
+  font-size: 9.5px;
+  font-weight: var(--fw-regular);
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}

@@ -20,17 +20,7 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: var(--fs-body);
   color: var(--text-primary);
-}
-
-.logoMark {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: var(--accent-gradient);
-  flex-shrink: 0;
 }
 
 .nav {

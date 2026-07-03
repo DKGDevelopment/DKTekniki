@@ -54,7 +54,7 @@ export default function HeroScene() {
         >
           <h1 className={styles.title}>Engineering Infrastructure</h1>
           <p className={styles.subtitle}>
-            DKTekniki is the open platform for building, deploying and scaling
+            DK Techniki is the open platform for building, deploying and scaling
             technical systems — trusted by teams around the world.
           </p>
 

@@ -90,7 +90,7 @@ export default function Home() {
         <section id="cta" className="section container">
           <FadeUp className={styles.cta}>
             <h2 className={styles.ctaHeading}>
-              Start building on DKTekniki today
+              Start building on DK Techniki today
             </h2>
             <Button href="#" variant="primary" arrow="→">
               Contact us

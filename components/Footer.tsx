@@ -1,3 +1,4 @@
+import Logo from "./Logo";
 import styles from "./Footer.module.css";
 
 const COLUMNS: Record<string, string[]> = {
@@ -12,7 +13,7 @@ export default function Footer() {
     <footer className={styles.footer}>
       <div className="container">
         <div className={styles.top}>
-          <span className={styles.logoMark} aria-hidden="true" />
+          <Logo size={40} tagline />
 
           <div className={styles.columns}>
             {Object.entries(COLUMNS).map(([head, links]) => (
@@ -29,7 +30,7 @@ export default function Footer() {
         </div>
 
         <div className={styles.wordmark} aria-hidden="true">
-          DKTekniki
+          DK Techniki
         </div>
       </div>
     </footer>

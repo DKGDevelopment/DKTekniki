@@ -11,14 +11,6 @@
   padding: var(--space-l) 0;
 }
 
-.logoMark {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--accent-gradient);
-  flex-shrink: 0;
-}
-
 .columns {
   display: grid;
   grid-template-columns: repeat(4, minmax(120px, 1fr));
