@@ -1,0 +1,47 @@
+.sphere {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 76px;
+  height: 76px;
+  margin: -38px 0 0 -38px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-card-alt);
+  border: 1px solid var(--border-2);
+  will-change: transform, opacity;
+}
+
+.badge img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.initials {
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+@media (max-width: 768px) {
+  .badge {
+    width: 54px;
+    height: 54px;
+    margin: -27px 0 0 -27px;
+  }
+
+  .initials {
+    font-size: 12px;
+  }
+}

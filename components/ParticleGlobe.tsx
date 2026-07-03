@@ -23,6 +23,33 @@ const GATHER_STRENGTH = 0.7; // 0 = no pull, 1 = dots snap onto the cursor
 // the sphere over this many milliseconds (staggered per particle)
 const INTRO_DURATION = 2600;
 
+// Residual starfield once the globe has dissolved into the next section
+const STARFIELD_FLOOR = 0.14;
+
+// Logo departiculation: scroll progress window over which the center
+// mark crumbles into particles and scatters
+const LOGO_DISSOLVE_START = 0.4;
+const LOGO_DISSOLVE_END = 0.66;
+const LOGO_MARK_SIZE = 72; // must match the <LogoMark size> in HeroScene
+
+// sima.svg geometry (viewBox 27.2 26.9 49.9 54.5): the seven polygons,
+// used to sample the particle cloud that replaces the mark on dissolve
+const LOGO_POLYGONS: { points: [number, number][]; grey: boolean }[] = [
+  { points: [[41.2, 51.1], [52, 57.8], [52, 52.1], [41.1, 45.5]], grey: false },
+  { points: [[75.1, 45], [52, 57.8], [52, 52.1], [75.1, 39.3]], grey: true },
+  { points: [[41.2, 61.9], [52, 68.6], [52, 62.9], [41.1, 56.3]], grey: false },
+  { points: [[75.1, 55.7], [52, 68.6], [52, 62.9], [75.1, 50.1]], grey: true },
+  { points: [[41.2, 72.7], [52, 79.4], [52, 73.7], [41.1, 67.1]], grey: false },
+  { points: [[75.1, 66.5], [52, 79.4], [52, 73.7], [75.1, 60.9]], grey: true },
+  {
+    points: [
+      [33.7, 69.5], [33.7, 44.2], [52, 34.3], [65.3, 41.6],
+      [70, 38.7], [52, 28.9], [29.2, 41.2], [29.2, 66.6],
+    ],
+    grey: false,
+  },
+];
+
 const VERTEX_SHADER = `
 precision mediump float;
 
@@ -120,7 +147,105 @@ void main() {
 }
 `;
 
-function compileProgram(gl: WebGLRenderingContext): WebGLProgram | null {
+// Second, tiny program: the logo mark as a point cloud that scatters
+const LOGO_VERTEX_SHADER = `
+precision mediump float;
+
+attribute vec2 a_off;    // offset from mark center in css px
+attribute vec3 a_burst;  // xy: scatter direction, z: stagger delay
+attribute float a_grey;  // 0 = white face, 1 = grey face
+
+uniform vec2 u_resolution;
+uniform vec2 u_center;
+uniform float u_dpr;
+uniform float u_dissolve; // 0 = intact mark, 1 = fully scattered
+
+varying float v_alpha;
+varying float v_grey;
+
+void main() {
+  float d = clamp((u_dissolve - a_burst.z * 0.35) / (1.0 - a_burst.z * 0.35), 0.0, 1.0);
+  float e = d * d;
+  vec2 px = u_center + a_off + a_burst.xy * e * 420.0;
+
+  v_grey = a_grey;
+  v_alpha = smoothstep(0.0, 0.05, u_dissolve) * (1.0 - smoothstep(0.35, 0.95, d));
+
+  gl_PointSize = (2.6 - 1.1 * d) * u_dpr;
+  vec2 clip = (px / u_resolution) * 2.0 - 1.0;
+  gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+}
+`;
+
+const LOGO_FRAGMENT_SHADER = `
+precision mediump float;
+
+varying float v_alpha;
+varying float v_grey;
+
+void main() {
+  if (length(gl_PointCoord - 0.5) > 0.5) discard;
+  vec3 color = mix(vec3(1.0), vec3(0.7), v_grey);
+  gl_FragColor = vec4(color, v_alpha);
+}
+`;
+
+function pointInPolygon(x: number, y: number, points: [number, number][]) {
+  let inside = false;
+  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
+    const [xi, yi] = points[i];
+    const [xj, yj] = points[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+// Sample points inside the sima polygons, in css-px offsets from the
+// mark center at its rendered size
+function buildLogoParticles() {
+  const scale = LOGO_MARK_SIZE / 54.5; // viewBox max dimension → px
+  const cx = 27.2 + 49.9 / 2;
+  const cy = 26.9 + 54.5 / 2;
+  const offsets: number[] = [];
+  const bursts: number[] = [];
+  const greys: number[] = [];
+  const step = 0.62;
+
+  for (let y = 26.9; y <= 81.4; y += step) {
+    for (let x = 27.2; x <= 77.1; x += step) {
+      const jx = x + (Math.random() - 0.5) * step;
+      const jy = y + (Math.random() - 0.5) * step;
+      for (const poly of LOGO_POLYGONS) {
+        if (pointInPolygon(jx, jy, poly.points)) {
+          offsets.push((jx - cx) * scale, (jy - cy) * scale);
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 0.4 + Math.random() * 0.9;
+          bursts.push(
+            Math.cos(angle) * speed,
+            Math.sin(angle) * speed - 0.25, // slight upward bias
+            Math.random() * 0.6
+          );
+          greys.push(poly.grey ? 1 : 0);
+          break;
+        }
+      }
+    }
+  }
+  return {
+    offsets: new Float32Array(offsets),
+    bursts: new Float32Array(bursts),
+    greys: new Float32Array(greys),
+    count: greys.length,
+  };
+}
+
+function compileProgram(
+  gl: WebGLRenderingContext,
+  vertexSource: string,
+  fragmentSource: string
+): WebGLProgram | null {
   const compile = (type: number, source: string) => {
     const shader = gl.createShader(type)!;
     gl.shaderSource(shader, source);
@@ -132,8 +257,8 @@ function compileProgram(gl: WebGLRenderingContext): WebGLProgram | null {
     return shader;
   };
 
-  const vs = compile(gl.VERTEX_SHADER, VERTEX_SHADER);
-  const fs = compile(gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
+  const vs = compile(gl.VERTEX_SHADER, vertexSource);
+  const fs = compile(gl.FRAGMENT_SHADER, fragmentSource);
   if (!vs || !fs) return null;
 
   const program = gl.createProgram()!;
@@ -198,8 +323,13 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       ) as WebGLRenderingContext | null);
     if (!gl) return; // no WebGL: globe is decorative, page still works
 
-    const program = compileProgram(gl);
-    if (!program) return;
+    const program = compileProgram(gl, VERTEX_SHADER, FRAGMENT_SHADER);
+    const logoProgram = compileProgram(
+      gl,
+      LOGO_VERTEX_SHADER,
+      LOGO_FRAGMENT_SHADER
+    );
+    if (!program || !logoProgram) return;
     gl.useProgram(program);
 
     const reduceMotion = window.matchMedia(
@@ -214,23 +344,52 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     );
     const { positions, sizes, ramps, scatters } = buildParticleBuffers(count);
 
-    const bindAttribute = (
-      name: string,
-      data: Float32Array,
-      itemSize: number
+    // Attribute buffers live per-program; remember locations + buffers so
+    // we can rebind when switching programs each frame
+    const makeAttributes = (
+      target: WebGLProgram,
+      specs: { name: string; data: Float32Array; itemSize: number }[]
     ) => {
-      const buffer = gl.createBuffer();
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-      gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
-      const location = gl.getAttribLocation(program, name);
-      gl.enableVertexAttribArray(location);
-      gl.vertexAttribPointer(location, itemSize, gl.FLOAT, false, 0, 0);
+      return specs.map(({ name, data, itemSize }) => {
+        const buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        const location = gl.getAttribLocation(target, name);
+        return { buffer, location, itemSize };
+      });
     };
 
-    bindAttribute("a_pos", positions, 3);
-    bindAttribute("a_size", sizes, 1);
-    bindAttribute("a_ramp", ramps, 2);
-    bindAttribute("a_scatter", scatters, 3);
+    const bindAttributes = (
+      attrs: ReturnType<typeof makeAttributes>,
+      enabledCount: { current: number }
+    ) => {
+      // Disable any leftover attribute slots from the other program
+      for (let i = 0; i < enabledCount.current; i++) gl.disableVertexAttribArray(i);
+      let maxLoc = 0;
+      for (const { buffer, location, itemSize } of attrs) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.enableVertexAttribArray(location);
+        gl.vertexAttribPointer(location, itemSize, gl.FLOAT, false, 0, 0);
+        maxLoc = Math.max(maxLoc, location + 1);
+      }
+      enabledCount.current = maxLoc;
+    };
+
+    const enabledAttrs = { current: 0 };
+
+    const globeAttrs = makeAttributes(program, [
+      { name: "a_pos", data: positions, itemSize: 3 },
+      { name: "a_size", data: sizes, itemSize: 1 },
+      { name: "a_ramp", data: ramps, itemSize: 2 },
+      { name: "a_scatter", data: scatters, itemSize: 3 },
+    ]);
+
+    const logo = buildLogoParticles();
+    const logoAttrs = makeAttributes(logoProgram, [
+      { name: "a_off", data: logo.offsets, itemSize: 2 },
+      { name: "a_burst", data: logo.bursts, itemSize: 3 },
+      { name: "a_grey", data: logo.greys, itemSize: 1 },
+    ]);
 
     const uniforms = {
       resolution: gl.getUniformLocation(program, "u_resolution"),
@@ -247,6 +406,13 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       gather: gl.getUniformLocation(program, "u_gather"),
       intro: gl.getUniformLocation(program, "u_intro"),
       scatterRadius: gl.getUniformLocation(program, "u_scatterRadius"),
+    };
+
+    const logoUniforms = {
+      resolution: gl.getUniformLocation(logoProgram, "u_resolution"),
+      center: gl.getUniformLocation(logoProgram, "u_center"),
+      dpr: gl.getUniformLocation(logoProgram, "u_dpr"),
+      dissolve: gl.getUniformLocation(logoProgram, "u_dissolve"),
     };
 
     gl.uniform1f(uniforms.cosTilt, Math.cos(AXIS_TILT));
@@ -296,10 +462,15 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       canvas.width = width * dpr;
       canvas.height = height * dpr;
       gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.useProgram(program);
       gl.uniform2f(uniforms.resolution, width, height);
       gl.uniform2f(uniforms.center, width / 2, height * CENTER_Y_FACTOR);
       gl.uniform1f(uniforms.dpr, dpr);
       gl.uniform1f(uniforms.scatterRadius, Math.max(width, height));
+      gl.useProgram(logoProgram);
+      gl.uniform2f(logoUniforms.resolution, width, height);
+      gl.uniform2f(logoUniforms.center, width / 2, height * CENTER_Y_FACTOR);
+      gl.uniform1f(logoUniforms.dpr, dpr);
     };
 
     const draw = () => {
@@ -307,9 +478,13 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       gl.clear(gl.COLOR_BUFFER_BIT);
 
       // Zoom: sphere radius grows from its resting size to well past it.
+      // Once dissolved, a faint residue of dots stays as a starfield
+      // behind the projects sphere.
       const baseRadius = Math.min(width, height) * RADIUS_FACTOR;
-      const fade = 1 - Math.max(0, (p - 0.55) / 0.45); // dissolve near the end
-      if (fade <= 0.01) return;
+      const fade = Math.max(
+        1 - Math.max(0, (p - 0.55) / 0.45),
+        STARFIELD_FLOOR
+      );
 
       if (pointer.active) {
         eased.x += (pointer.x - eased.x) * POINTER_EASE;
@@ -323,6 +498,8 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
         : Math.min((performance.now() - introStart) / INTRO_DURATION, 1);
       const intro = 1 - Math.pow(1 - introT, 3);
 
+      gl.useProgram(program);
+      bindAttributes(globeAttrs, enabledAttrs);
       gl.uniform1f(uniforms.rotation, rotation);
       gl.uniform1f(uniforms.radius, baseRadius * (1 + p * 3.2));
       gl.uniform1f(uniforms.fade, fade);
@@ -331,6 +508,16 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       gl.uniform3f(uniforms.pointer, eased.x, eased.y, spotlight ? 1 : 0);
 
       gl.drawArrays(gl.POINTS, 0, count);
+
+      // Logo departiculation pass, only while it's in progress
+      const dissolve =
+        (p - LOGO_DISSOLVE_START) / (LOGO_DISSOLVE_END - LOGO_DISSOLVE_START);
+      if (!reduceMotion && dissolve > 0 && dissolve < 1) {
+        gl.useProgram(logoProgram);
+        bindAttributes(logoAttrs, enabledAttrs);
+        gl.uniform1f(logoUniforms.dissolve, dissolve);
+        gl.drawArrays(gl.POINTS, 0, logo.count);
+      }
 
       if (!reduceMotion) {
         rotation += ROTATION_SPEED;

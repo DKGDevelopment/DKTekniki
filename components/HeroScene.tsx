@@ -8,19 +8,10 @@ import {
   useTransform,
 } from "framer-motion";
 import ParticleGlobe from "./ParticleGlobe";
+import ProjectSphere from "./ProjectSphere";
 import Counter from "./Counter";
 import { LogoMark } from "./Logo";
 import styles from "./HeroScene.module.css";
-
-const BUBBLES = [
-  { name: "Elite Living", top: "22%", left: "16%" },
-  { name: "Piraeus Gate", top: "18%", left: "68%" },
-  { name: "IMERAS", top: "42%", left: "8%" },
-  { name: "Wyndham Mediterranean", top: "40%", left: "72%" },
-  { name: "New Age Living", top: "70%", left: "12%" },
-  { name: "Nuvia Urban Stay", top: "64%", left: "82%" },
-  { name: "B-48", top: "80%", left: "44%" },
-];
 
 export default function HeroScene() {
   const sceneRef = useRef<HTMLDivElement>(null);
@@ -33,7 +24,8 @@ export default function HeroScene() {
 
   const heroOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
   const heroY = useTransform(scrollYProgress, [0, 0.35], [0, -40]);
-  const markOpacity = useTransform(scrollYProgress, [0.4, 0.6], [1, 0]);
+  // The solid mark hands off to the WebGL departiculation at 0.4
+  const markOpacity = useTransform(scrollYProgress, [0.36, 0.44], [1, 0]);
   const constellationOpacity = useTransform(
     scrollYProgress,
     [0.5, 0.75],
@@ -92,37 +84,18 @@ export default function HeroScene() {
           </div>
         </motion.div>
 
-        {/* Logo constellation — particles resolve into brand bubbles */}
+        {/* Projects constellation — a rotating sphere of project badges
+            orbiting the heading */}
         <motion.div
           className={styles.constellation}
           style={reduceMotion ? undefined : { opacity: constellationOpacity }}
           aria-hidden={!reduceMotion}
         >
+          <ProjectSphere />
           <h2 className={styles.constellationTitle}>
             Driven by experts creating the next generation of architectural
             spaces.
           </h2>
-
-          {BUBBLES.map((bubble, i) => (
-            <motion.div
-              key={bubble.name}
-              className={styles.bubble}
-              style={{ top: bubble.top, left: bubble.left }}
-              animate={
-                reduceMotion
-                  ? undefined
-                  : { y: [0, i % 2 === 0 ? -10 : 10, 0] }
-              }
-              transition={{
-                duration: 4 + (i % 3),
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-            >
-              <span className={styles.bubbleDot} aria-hidden="true" />
-              {bubble.name}
-            </motion.div>
-          ))}
         </motion.div>
       </div>
     </div>
