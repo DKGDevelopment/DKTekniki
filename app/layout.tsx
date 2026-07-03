@@ -12,7 +12,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "DK Techniki — Building Innovation",
   description:
-    "DK Techniki is an open infrastructure platform for building, deploying and scaling technical systems. Trusted by teams worldwide.",
+    "DK Techniki is the architecture and construction branch of our company — designing, engineering and delivering exceptional buildings, from first sketch to final build.",
 };
 
 export default function RootLayout({
