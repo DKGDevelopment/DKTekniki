@@ -1,7 +1,7 @@
 import Header from "@/components/Header";
 import HeroScene from "@/components/HeroScene";
 import FeatureCard, { type Feature } from "@/components/FeatureCard";
-import CodeCard from "@/components/CodeCard";
+import ToolsCard from "@/components/ToolsCard";
 import TrustRow from "@/components/TrustRow";
 import InvestorGrid from "@/components/InvestorGrid";
 import Footer from "@/components/Footer";
@@ -51,16 +51,16 @@ export default function Home() {
           ))}
         </section>
 
-        {/* 4. Open / secure */}
+        {/* 4. Architecture & tools */}
         <section id="open" className="section container">
           <FadeUp>
-            <p className="eyebrow">Open &amp; secure</p>
+            <p className="eyebrow">How we design</p>
             <h2 className={styles.sectionHeading}>
-              Fully open source, verifiable from the first line
+              Architecture crafted with precision, from concept to construction
             </h2>
           </FadeUp>
           <FadeUp delay={0.1}>
-            <CodeCard />
+            <ToolsCard />
           </FadeUp>
         </section>
 
