@@ -6,7 +6,7 @@
 import { useEffect, useRef } from "react";
 import type { MotionValue } from "framer-motion";
 
-const MAX_PARTICLES = 14000;
+const MAX_PARTICLES = 21000;
 const ROTATION_SPEED = 0.0038;
 const AXIS_TILT = -0.28; // radians, tips the globe like a planet
 
@@ -106,7 +106,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     // Density scales with viewport so phones draw a fraction of the dots
     const area = canvas.clientWidth * canvas.clientHeight;
     const particles = buildParticles(
-      Math.min(MAX_PARTICLES, Math.max(2400, Math.floor(area / 95)))
+      Math.min(MAX_PARTICLES, Math.max(3600, Math.floor(area / 63)))
     );
     const sprites = buildSprites();
     const cosTilt = Math.cos(AXIS_TILT);
