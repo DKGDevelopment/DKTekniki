@@ -19,12 +19,17 @@ const POINTER_RADIUS = 210;
 const POINTER_EASE = 0.12;
 const GATHER_STRENGTH = 0.7; // 0 = no pull, 1 = dots snap onto the cursor
 
+// Intro: dots fly in from beyond the screen edges and accumulate into
+// the sphere over this many milliseconds (staggered per particle)
+const INTRO_DURATION = 2600;
+
 const VERTEX_SHADER = `
 precision mediump float;
 
 attribute vec3 a_pos;      // unit-sphere position (jittered shell)
 attribute float a_size;    // 0.5 - 2.4 relative dot size
 attribute vec2 a_ramp;     // x: phase, y: speed of white<->blue drift
+attribute vec3 a_scatter;  // xy: fly-in direction * distance, z: delay
 
 uniform vec2 u_resolution; // canvas size in css px
 uniform vec2 u_center;     // sphere center in css px
@@ -38,6 +43,8 @@ uniform float u_time;
 uniform vec3 u_pointer;    // x, y in css px; z = active flag
 uniform float u_pointerRadius;
 uniform float u_gather;
+uniform float u_intro;     // 0 = scattered off-screen, 1 = formed sphere
+uniform float u_scatterRadius;
 
 varying float v_alpha;
 varying vec3 v_color;
@@ -58,6 +65,13 @@ void main() {
 
   float scale = PERSPECTIVE / (PERSPECTIVE + z);
   vec2 px = u_center + vec2(x, y) * u_radius * scale;
+
+  // Intro accumulation: blend from a far-off scatter point toward the
+  // sphere position, staggered and smoothstepped per particle
+  float intro = clamp((u_intro - a_scatter.z) / (1.0 - a_scatter.z), 0.0, 1.0);
+  intro = intro * intro * (3.0 - 2.0 * intro);
+  vec2 scatterPx = u_center + a_scatter.xy * u_scatterRadius;
+  px = mix(scatterPx, px, intro);
 
   float depth = (1.0 - z) * 0.5; // 0 back -> 1 front
   float lit = max(0.0, dot(vec3(x, y, z), LIGHT));
@@ -80,6 +94,7 @@ void main() {
   v_color = mix(WHITE, BLUE, ramp * (1.0 - boost));
 
   v_alpha = clamp((0.42 + depth * 0.45 + lit * 0.6) * u_fade + boost * 0.8, 0.0, 1.0);
+  v_alpha *= 0.35 + 0.65 * intro; // incoming dots glow up as they settle
 
   float size = (1.3 + lit * 1.4) * a_size * scale * (1.0 + boost * 1.1);
   gl_PointSize = size * 2.0 * u_dpr;
@@ -133,6 +148,7 @@ function buildParticleBuffers(count: number) {
   const positions = new Float32Array(count * 3);
   const sizes = new Float32Array(count);
   const ramps = new Float32Array(count * 2);
+  const scatters = new Float32Array(count * 3);
   const golden = Math.PI * (3 - Math.sqrt(5));
 
   for (let i = 0; i < count; i++) {
@@ -147,8 +163,15 @@ function buildParticleBuffers(count: number) {
     sizes[i] = 0.5 + Math.random() * Math.random() * 1.9;
     ramps[i * 2] = Math.random() * Math.PI * 2;
     ramps[i * 2 + 1] = 0.4 + Math.random() * 0.9;
+    // Fly-in start: random direction from every side of the screen,
+    // random distance past the edges, random stagger delay
+    const angle = Math.random() * Math.PI * 2;
+    const distance = 0.9 + Math.random() * 0.7;
+    scatters[i * 3] = Math.cos(angle) * distance;
+    scatters[i * 3 + 1] = Math.sin(angle) * distance;
+    scatters[i * 3 + 2] = Math.random() * 0.45;
   }
-  return { positions, sizes, ramps };
+  return { positions, sizes, ramps, scatters };
 }
 
 type ParticleGlobeProps = {
@@ -189,7 +212,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       MAX_PARTICLES,
       Math.max(3600, Math.floor(area / 63))
     );
-    const { positions, sizes, ramps } = buildParticleBuffers(count);
+    const { positions, sizes, ramps, scatters } = buildParticleBuffers(count);
 
     const bindAttribute = (
       name: string,
@@ -207,6 +230,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     bindAttribute("a_pos", positions, 3);
     bindAttribute("a_size", sizes, 1);
     bindAttribute("a_ramp", ramps, 2);
+    bindAttribute("a_scatter", scatters, 3);
 
     const uniforms = {
       resolution: gl.getUniformLocation(program, "u_resolution"),
@@ -221,6 +245,8 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       pointer: gl.getUniformLocation(program, "u_pointer"),
       pointerRadius: gl.getUniformLocation(program, "u_pointerRadius"),
       gather: gl.getUniformLocation(program, "u_gather"),
+      intro: gl.getUniformLocation(program, "u_intro"),
+      scatterRadius: gl.getUniformLocation(program, "u_scatterRadius"),
     };
 
     gl.uniform1f(uniforms.cosTilt, Math.cos(AXIS_TILT));
@@ -238,6 +264,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     let rafId = 0;
     let width = 0;
     let height = 0;
+    const introStart = performance.now();
 
     // Cursor spotlight state — eased toward the real pointer each frame
     const pointer = { x: -9999, y: -9999, active: false };
@@ -272,6 +299,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       gl.uniform2f(uniforms.resolution, width, height);
       gl.uniform2f(uniforms.center, width / 2, height * CENTER_Y_FACTOR);
       gl.uniform1f(uniforms.dpr, dpr);
+      gl.uniform1f(uniforms.scatterRadius, Math.max(width, height));
     };
 
     const draw = () => {
@@ -289,10 +317,17 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       }
       const spotlight = pointer.active && !reduceMotion;
 
+      // Intro accumulation progress, eased out; skipped for reduced motion
+      const introT = reduceMotion
+        ? 1
+        : Math.min((performance.now() - introStart) / INTRO_DURATION, 1);
+      const intro = 1 - Math.pow(1 - introT, 3);
+
       gl.uniform1f(uniforms.rotation, rotation);
       gl.uniform1f(uniforms.radius, baseRadius * (1 + p * 3.2));
       gl.uniform1f(uniforms.fade, fade);
       gl.uniform1f(uniforms.time, time);
+      gl.uniform1f(uniforms.intro, intro);
       gl.uniform3f(uniforms.pointer, eased.x, eased.y, spotlight ? 1 : 0);
 
       gl.drawArrays(gl.POINTS, 0, count);
