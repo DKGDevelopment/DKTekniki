@@ -23,7 +23,7 @@ const LIGHT = { x: 0.5, y: -0.65, z: 0.57 };
 // gather toward the pointer
 const POINTER_RADIUS = 210;
 const POINTER_EASE = 0.12;
-const GATHER_STRENGTH = 0.55; // 0 = no pull, 1 = dots snap onto the cursor
+const GATHER_STRENGTH = 0.7; // 0 = no pull, 1 = dots snap onto the cursor
 
 type Particle = {
   x: number;
