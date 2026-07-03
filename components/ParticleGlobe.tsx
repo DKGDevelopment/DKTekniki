@@ -1,7 +1,8 @@
 "use client";
 
-// TODO: WebGL globe — this is the canvas-2D fallback pass. Swap for an
-// OGL/raw-WebGL particle sphere when upgrading the hero visual.
+// WebGL particle globe. All per-particle work (rotation, projection,
+// lighting, color drift, cursor spotlight/gather) runs in the vertex
+// shader, so frame cost on the CPU is a handful of uniform uploads.
 
 import { useEffect, useRef } from "react";
 import type { MotionValue } from "framer-motion";
@@ -10,79 +11,142 @@ const MAX_PARTICLES = 21000;
 const ROTATION_SPEED = 0.0038;
 const AXIS_TILT = -0.28; // radians, tips the globe like a planet
 
-// Color ramp endpoints: white ↔ electric blue. Each particle drifts
-// back and forth along this ramp continuously.
-const RAMP_FROM = { r: 255, g: 255, b: 255 };
-const RAMP_TO = { r: 61, g: 122, b: 255 };
-const RAMP_STEPS = 9;
-
-// Light comes from the top-right-front, matching the reference highlight
-const LIGHT = { x: 0.5, y: -0.65, z: 0.57 };
-
 // Cursor spotlight: dots within this screen radius brighten, grow and
 // gather toward the pointer
 const POINTER_RADIUS = 210;
 const POINTER_EASE = 0.12;
 const GATHER_STRENGTH = 0.7; // 0 = no pull, 1 = dots snap onto the cursor
 
-type Particle = {
-  x: number;
-  y: number;
-  z: number;
-  size: number; // 0.5–2.4 relative dot size
-  rampPhase: number; // where on the white↔blue ramp this dot starts
-  rampSpeed: number; // how fast it drifts along the ramp
-};
+const VERTEX_SHADER = `
+precision mediump float;
 
-function buildParticles(count: number): Particle[] {
-  const particles: Particle[] = [];
+attribute vec3 a_pos;      // unit-sphere position (jittered shell)
+attribute float a_size;    // 0.5 - 2.4 relative dot size
+attribute vec2 a_ramp;     // x: phase, y: speed of white<->blue drift
+
+uniform vec2 u_resolution; // canvas size in css px
+uniform float u_dpr;
+uniform float u_rotation;
+uniform float u_cosTilt;
+uniform float u_sinTilt;
+uniform float u_radius;    // sphere radius in css px
+uniform float u_fade;
+uniform float u_time;
+uniform vec3 u_pointer;    // x, y in css px; z = active flag
+uniform float u_pointerRadius;
+uniform float u_gather;
+
+varying float v_alpha;
+varying vec3 v_color;
+
+const vec3 LIGHT = vec3(0.5, -0.65, 0.57);
+const vec3 WHITE = vec3(1.0, 1.0, 1.0);
+const vec3 BLUE = vec3(0.239, 0.478, 1.0); // electric blue #3D7AFF
+const float PERSPECTIVE = 3.0;
+
+void main() {
+  // Spin around Y, then tilt the whole axis around Z
+  float cosR = cos(u_rotation);
+  float sinR = sin(u_rotation);
+  float rx = a_pos.x * cosR - a_pos.z * sinR;
+  float z = a_pos.x * sinR + a_pos.z * cosR;
+  float x = rx * u_cosTilt - a_pos.y * u_sinTilt;
+  float y = rx * u_sinTilt + a_pos.y * u_cosTilt;
+
+  float scale = PERSPECTIVE / (PERSPECTIVE + z);
+  vec2 center = u_resolution * 0.5;
+  vec2 px = center + vec2(x, y) * u_radius * scale;
+
+  float depth = (1.0 - z) * 0.5; // 0 back -> 1 front
+  float lit = max(0.0, dot(vec3(x, y, z), LIGHT));
+
+  // Cursor spotlight: brighten + gather, squared falloff, front-weighted
+  float boost = 0.0;
+  if (u_pointer.z > 0.5) {
+    vec2 toPointer = u_pointer.xy - px;
+    float d = length(toPointer);
+    if (d < u_pointerRadius) {
+      float falloff = 1.0 - d / u_pointerRadius;
+      float react = 0.35 + depth * 0.65;
+      boost = falloff * falloff * react;
+      px += toPointer * (falloff * falloff * u_gather * react);
+    }
+  }
+
+  // Continuous white <-> electric-blue drift; spotlight pulls toward white
+  float ramp = (sin(u_time * a_ramp.y + a_ramp.x) + 1.0) * 0.5;
+  v_color = mix(WHITE, BLUE, ramp * (1.0 - boost));
+
+  v_alpha = clamp((0.42 + depth * 0.45 + lit * 0.6) * u_fade + boost * 0.8, 0.0, 1.0);
+
+  float size = (1.3 + lit * 1.4) * a_size * scale * (1.0 + boost * 1.1);
+  gl_PointSize = size * 2.0 * u_dpr;
+
+  vec2 clip = (px / u_resolution) * 2.0 - 1.0;
+  gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);
+}
+`;
+
+const FRAGMENT_SHADER = `
+precision mediump float;
+
+varying float v_alpha;
+varying vec3 v_color;
+
+void main() {
+  // Soft glow matching the old radial-gradient sprites
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  if (d > 1.0) discard;
+  float glow = 1.0 - smoothstep(0.0, 1.0, d);
+  glow *= mix(1.0, 0.85, smoothstep(0.0, 0.35, d));
+  gl_FragColor = vec4(v_color, v_alpha * glow);
+}
+`;
+
+function compileProgram(gl: WebGLRenderingContext): WebGLProgram | null {
+  const compile = (type: number, source: string) => {
+    const shader = gl.createShader(type)!;
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  };
+
+  const vs = compile(gl.VERTEX_SHADER, VERTEX_SHADER);
+  const fs = compile(gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
+  if (!vs || !fs) return null;
+
+  const program = gl.createProgram()!;
+  gl.attachShader(program, vs);
+  gl.attachShader(program, fs);
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return null;
+  return program;
+}
+
+function buildParticleBuffers(count: number) {
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const ramps = new Float32Array(count * 2);
   const golden = Math.PI * (3 - Math.sqrt(5));
+
   for (let i = 0; i < count; i++) {
     const y = 1 - (i / (count - 1)) * 2;
     const radius = Math.sqrt(1 - y * y);
     const theta = golden * i;
     // Jitter the shell slightly so the surface reads organic, not gridded
     const shell = 0.94 + Math.random() * 0.08;
-    particles.push({
-      x: Math.cos(theta) * radius * shell,
-      y: y * shell,
-      z: Math.sin(theta) * radius * shell,
-      size: 0.5 + Math.random() * Math.random() * 1.9,
-      rampPhase: Math.random() * Math.PI * 2,
-      rampSpeed: 0.4 + Math.random() * 0.9,
-    });
+    positions[i * 3] = Math.cos(theta) * radius * shell;
+    positions[i * 3 + 1] = y * shell;
+    positions[i * 3 + 2] = Math.sin(theta) * radius * shell;
+    sizes[i] = 0.5 + Math.random() * Math.random() * 1.9;
+    ramps[i * 2] = Math.random() * Math.PI * 2;
+    ramps[i * 2 + 1] = 0.4 + Math.random() * 0.9;
   }
-  return particles;
-}
-
-// Pre-render one soft glow sprite per ramp step; drawImage is far
-// cheaper than per-dot arc + gradient at this particle count.
-function buildSprites(): HTMLCanvasElement[] {
-  const SPRITE = 32;
-  return Array.from({ length: RAMP_STEPS }, (_, i) => {
-    const t = i / (RAMP_STEPS - 1);
-    const rgb = `${Math.round(RAMP_FROM.r + (RAMP_TO.r - RAMP_FROM.r) * t)}, ${Math.round(
-      RAMP_FROM.g + (RAMP_TO.g - RAMP_FROM.g) * t
-    )}, ${Math.round(RAMP_FROM.b + (RAMP_TO.b - RAMP_FROM.b) * t)}`;
-    const c = document.createElement("canvas");
-    c.width = SPRITE;
-    c.height = SPRITE;
-    const g = c.getContext("2d")!;
-    const grad = g.createRadialGradient(
-      SPRITE / 2,
-      SPRITE / 2,
-      0,
-      SPRITE / 2,
-      SPRITE / 2,
-      SPRITE / 2
-    );
-    grad.addColorStop(0, `rgba(${rgb}, 1)`);
-    grad.addColorStop(0.35, `rgba(${rgb}, 0.85)`);
-    grad.addColorStop(1, `rgba(${rgb}, 0)`);
-    g.fillStyle = grad;
-    g.fillRect(0, 0, SPRITE, SPRITE);
-    return c;
-  });
+  return { positions, sizes, ramps };
 }
 
 type ParticleGlobeProps = {
@@ -96,8 +160,22 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    const gl =
+      canvas.getContext("webgl", {
+        alpha: true,
+        antialias: false,
+        depth: false,
+        stencil: false,
+        powerPreference: "high-performance",
+      }) ||
+      (canvas.getContext(
+        "experimental-webgl"
+      ) as WebGLRenderingContext | null);
+    if (!gl) return; // no WebGL: globe is decorative, page still works
+
+    const program = compileProgram(gl);
+    if (!program) return;
+    gl.useProgram(program);
 
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -105,19 +183,58 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
 
     // Density scales with viewport so phones draw a fraction of the dots
     const area = canvas.clientWidth * canvas.clientHeight;
-    const particles = buildParticles(
-      Math.min(MAX_PARTICLES, Math.max(3600, Math.floor(area / 63)))
+    const count = Math.min(
+      MAX_PARTICLES,
+      Math.max(3600, Math.floor(area / 63))
     );
-    const sprites = buildSprites();
-    const cosTilt = Math.cos(AXIS_TILT);
-    const sinTilt = Math.sin(AXIS_TILT);
+    const { positions, sizes, ramps } = buildParticleBuffers(count);
+
+    const bindAttribute = (
+      name: string,
+      data: Float32Array,
+      itemSize: number
+    ) => {
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+      const location = gl.getAttribLocation(program, name);
+      gl.enableVertexAttribArray(location);
+      gl.vertexAttribPointer(location, itemSize, gl.FLOAT, false, 0, 0);
+    };
+
+    bindAttribute("a_pos", positions, 3);
+    bindAttribute("a_size", sizes, 1);
+    bindAttribute("a_ramp", ramps, 2);
+
+    const uniforms = {
+      resolution: gl.getUniformLocation(program, "u_resolution"),
+      dpr: gl.getUniformLocation(program, "u_dpr"),
+      rotation: gl.getUniformLocation(program, "u_rotation"),
+      cosTilt: gl.getUniformLocation(program, "u_cosTilt"),
+      sinTilt: gl.getUniformLocation(program, "u_sinTilt"),
+      radius: gl.getUniformLocation(program, "u_radius"),
+      fade: gl.getUniformLocation(program, "u_fade"),
+      time: gl.getUniformLocation(program, "u_time"),
+      pointer: gl.getUniformLocation(program, "u_pointer"),
+      pointerRadius: gl.getUniformLocation(program, "u_pointerRadius"),
+      gather: gl.getUniformLocation(program, "u_gather"),
+    };
+
+    gl.uniform1f(uniforms.cosTilt, Math.cos(AXIS_TILT));
+    gl.uniform1f(uniforms.sinTilt, Math.sin(AXIS_TILT));
+    gl.uniform1f(uniforms.pointerRadius, POINTER_RADIUS);
+    gl.uniform1f(uniforms.gather, GATHER_STRENGTH);
+
+    gl.disable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
+
     let rotation = 0;
     let time = 0;
     let rafId = 0;
-    let visible = true;
     let width = 0;
     let height = 0;
-    let dpr = 1;
 
     // Cursor spotlight state — eased toward the real pointer each frame
     const pointer = { x: -9999, y: -9999, active: false };
@@ -143,93 +260,38 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     };
 
     const resize = () => {
-      // Soft glow sprites don't need retina sharpness; 1.5 keeps fill cheap
-      dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = canvas.clientWidth;
       height = canvas.clientHeight;
       canvas.width = width * dpr;
       canvas.height = height * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform2f(uniforms.resolution, width, height);
+      gl.uniform1f(uniforms.dpr, dpr);
     };
 
     const draw = () => {
       const p = reduceMotion ? 0 : progress.get();
-      ctx.clearRect(0, 0, width, height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
 
-      const cx = width / 2;
-      const cy = height / 2;
       // Zoom: sphere radius grows from ~40% of viewport to well past it.
       const baseRadius = Math.min(width, height) * 0.4;
-      const radius = baseRadius * (1 + p * 3.2);
       const fade = 1 - Math.max(0, (p - 0.55) / 0.45); // dissolve near the end
       if (fade <= 0.01) return;
-      const cosR = Math.cos(rotation);
-      const sinR = Math.sin(rotation);
-      const perspective = 3;
 
-      // Ease the spotlight toward the pointer
       if (pointer.active) {
         eased.x += (pointer.x - eased.x) * POINTER_EASE;
         eased.y += (pointer.y - eased.y) * POINTER_EASE;
       }
       const spotlight = pointer.active && !reduceMotion;
-      const pointerR2 = POINTER_RADIUS * POINTER_RADIUS;
 
-      for (const particle of particles) {
-        // Spin around Y, then tilt the whole axis around Z
-        const rx = particle.x * cosR - particle.z * sinR;
-        const z = particle.x * sinR + particle.z * cosR;
-        const x = rx * cosTilt - particle.y * sinTilt;
-        const y = rx * sinTilt + particle.y * cosTilt;
+      gl.uniform1f(uniforms.rotation, rotation);
+      gl.uniform1f(uniforms.radius, baseRadius * (1 + p * 3.2));
+      gl.uniform1f(uniforms.fade, fade);
+      gl.uniform1f(uniforms.time, time);
+      gl.uniform3f(uniforms.pointer, eased.x, eased.y, spotlight ? 1 : 0);
 
-        const scale = perspective / (perspective + z);
-        let px = cx + x * radius * scale;
-        let py = cy + y * radius * scale;
-
-        const depth = (1 - z) / 2; // 0 back → 1 front
-        // Lambert-ish shading toward the light direction
-        const lit = Math.max(0, x * LIGHT.x + y * LIGHT.y + z * LIGHT.z);
-
-        // Cursor spotlight: dots inside the radius brighten AND gather
-        // toward the pointer, with a smooth falloff. Front hemisphere
-        // reacts most.
-        let boost = 0;
-        if (spotlight) {
-          const dx = eased.x - px;
-          const dy = eased.y - py;
-          const d2 = dx * dx + dy * dy;
-          if (d2 < pointerR2) {
-            const falloff = 1 - Math.sqrt(d2) / POINTER_RADIUS;
-            const react = 0.35 + depth * 0.65;
-            boost = falloff * falloff * react;
-            // Pull toward the cursor — strongest up close, so dots
-            // visibly cluster around it while it moves
-            const gather = falloff * falloff * GATHER_STRENGTH * react;
-            px += dx * gather;
-            py += dy * gather;
-          }
-        }
-
-        if (px < -20 || px > width + 20 || py < -20 || py > height + 20) {
-          continue;
-        }
-
-        // Continuous white ↔ electric-blue drift, one sprite per ramp step
-        const ramp =
-          (Math.sin(time * particle.rampSpeed + particle.rampPhase) + 1) / 2;
-        const sprite =
-          sprites[Math.round(ramp * (RAMP_STEPS - 1) * (1 - boost))];
-
-        const alpha =
-          (0.42 + depth * 0.45 + lit * 0.6) * fade + boost * 0.8;
-        if (alpha <= 0.02) continue;
-
-        const size =
-          (1.3 + lit * 1.4) * particle.size * scale * (1 + boost * 1.1);
-        ctx.globalAlpha = Math.min(alpha, 1);
-        ctx.drawImage(sprite, px - size, py - size, size * 2, size * 2);
-      }
-      ctx.globalAlpha = 1;
+      gl.drawArrays(gl.POINTS, 0, count);
 
       if (!reduceMotion) {
         rotation += ROTATION_SPEED;
@@ -243,11 +305,10 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     };
 
     const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
       cancelAnimationFrame(rafId);
-      if (visible && !reduceMotion) {
+      if (entry.isIntersecting && !reduceMotion) {
         rafId = requestAnimationFrame(loop);
-      } else if (visible) {
+      } else if (entry.isIntersecting) {
         draw();
       }
     });
@@ -268,6 +329,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
         "pointerleave",
         onPointerLeave
       );
+      gl.getExtension("WEBGL_lose_context")?.loseContext();
     };
   }, [progress]);
 
