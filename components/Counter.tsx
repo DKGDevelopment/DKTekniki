@@ -17,7 +17,7 @@ export default function Counter({
   duration = 1.8,
 }: CounterProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
+  const inView = useInView(ref, { once: true });
   const reduceMotion = useReducedMotion();
   const [value, setValue] = useState(0);
 
