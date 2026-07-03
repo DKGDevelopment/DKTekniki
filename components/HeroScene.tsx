@@ -12,13 +12,13 @@ import Counter from "./Counter";
 import styles from "./HeroScene.module.css";
 
 const BUBBLES = [
-  { name: "Nordkraft", top: "22%", left: "16%" },
-  { name: "Attiki Systems", top: "18%", left: "68%" },
-  { name: "Vertex Labs", top: "42%", left: "8%" },
-  { name: "Heliotrope", top: "40%", left: "78%" },
-  { name: "Piraeus Cloud", top: "70%", left: "12%" },
-  { name: "Kymata", top: "64%", left: "82%" },
-  { name: "Delta Forge", top: "80%", left: "44%" },
+  { name: "Elite Living", top: "22%", left: "16%" },
+  { name: "Piraeus Gate", top: "18%", left: "68%" },
+  { name: "IMERAS", top: "42%", left: "8%" },
+  { name: "Wyndham Mediterranean", top: "40%", left: "72%" },
+  { name: "New Age Living", top: "70%", left: "12%" },
+  { name: "Nuvia Urban Stay", top: "64%", left: "82%" },
+  { name: "B-48", top: "80%", left: "44%" },
 ];
 
 export default function HeroScene() {
