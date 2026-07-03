@@ -160,12 +160,12 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
         const lit = Math.max(0, x * LIGHT.x + y * LIGHT.y + z * LIGHT.z);
         const shimmer = reduceMotion
           ? 1
-          : 0.85 + 0.15 * Math.sin(time * 1.4 + particle.twinkle);
+          : 0.9 + 0.1 * Math.sin(time * 1.4 + particle.twinkle);
         const alpha =
-          (0.18 + depth * 0.42 + lit * 0.55) * shimmer * fade;
+          (0.42 + depth * 0.45 + lit * 0.6) * shimmer * fade;
         if (alpha <= 0.02) continue;
 
-        const size = (1.1 + lit * 1.3) * particle.size * scale;
+        const size = (1.3 + lit * 1.4) * particle.size * scale;
         ctx.globalAlpha = Math.min(alpha, 1);
         ctx.drawImage(
           sprites[particle.color],
