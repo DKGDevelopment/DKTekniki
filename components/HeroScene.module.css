@@ -21,23 +21,30 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   text-align: center;
-  padding: var(--header-height) var(--page-margin) var(--space-m);
+  padding: calc(var(--header-height) + 40px) var(--page-margin)
+    var(--space-m);
 }
 
 .title {
-  font-size: var(--fs-display);
+  font-size: clamp(32px, 3.6vw, 52px);
   line-height: var(--lh-tight);
   font-weight: var(--fw-light);
-  max-width: 15ch;
 }
 
 .subtitle {
-  margin-top: var(--space-s);
+  margin-top: var(--space-xs);
   font-size: var(--fs-body);
   color: var(--text-secondary);
-  max-width: 42ch;
+  max-width: 58ch;
+}
+
+.centerMark {
+  position: absolute;
+  left: 50%;
+  top: 61%; /* matches ParticleGlobe CENTER_Y_FACTOR */
+  transform: translate(-50%, -50%);
 }
 
 .stats {
@@ -49,6 +56,11 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-s);
+}
+
+.statsGroup {
+  display: flex;
+  gap: var(--space-l);
 }
 
 .stat {
@@ -113,6 +125,10 @@
 @media (max-width: 768px) {
   .stats {
     flex-wrap: wrap;
+  }
+
+  .statsGroup {
+    gap: var(--space-s);
   }
 
   .scrollCue {

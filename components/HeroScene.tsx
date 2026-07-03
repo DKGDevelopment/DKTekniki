@@ -9,6 +9,7 @@ import {
 } from "framer-motion";
 import ParticleGlobe from "./ParticleGlobe";
 import Counter from "./Counter";
+import { LogoMark } from "./Logo";
 import styles from "./HeroScene.module.css";
 
 const BUBBLES = [
@@ -32,6 +33,7 @@ export default function HeroScene() {
 
   const heroOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
   const heroY = useTransform(scrollYProgress, [0, 0.35], [0, -40]);
+  const markOpacity = useTransform(scrollYProgress, [0.4, 0.6], [1, 0]);
   const constellationOpacity = useTransform(
     scrollYProgress,
     [0.5, 0.75],
@@ -45,7 +47,16 @@ export default function HeroScene() {
           <ParticleGlobe progress={scrollYProgress} />
         </div>
 
-        {/* Hero copy — fades out as the globe zoom begins */}
+        {/* Sima mark at the heart of the globe */}
+        <motion.div
+          className={styles.centerMark}
+          style={reduceMotion ? undefined : { opacity: markOpacity }}
+          aria-hidden="true"
+        >
+          <LogoMark size={72} />
+        </motion.div>
+
+        {/* Hero copy above the globe — fades out as the zoom begins */}
         <motion.div
           className={styles.overlay}
           style={
@@ -60,22 +71,24 @@ export default function HeroScene() {
           </p>
 
           <div className={styles.stats}>
-            <div className={styles.stat}>
-              <div className={styles.statValue}>
-                <Counter target={122000} duration={2} />
+            <div className={styles.statsGroup}>
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>Total SQM Built</div>
+                <div className={styles.statValue}>
+                  <Counter target={122000} duration={2} />
+                </div>
               </div>
-              <div className={styles.statLabel}>Total SQM Built</div>
+
+              <div className={styles.stat}>
+                <div className={styles.statLabel}>Apartments Designed</div>
+                <div className={styles.statValue}>
+                  <Counter target={1000} suffix="+" duration={2} />
+                </div>
+              </div>
             </div>
 
             <div className={styles.scrollCue} aria-hidden="true">
               Scroll to explore ↓
-            </div>
-
-            <div className={styles.stat}>
-              <div className={styles.statValue}>
-                <Counter target={1000} suffix="+" duration={2} />
-              </div>
-              <div className={styles.statLabel}>Apartments Designed</div>
             </div>
           </div>
         </motion.div>

@@ -10,6 +10,8 @@ import type { MotionValue } from "framer-motion";
 const MAX_PARTICLES = 21000;
 const ROTATION_SPEED = 0.0038;
 const AXIS_TILT = -0.28; // radians, tips the globe like a planet
+const RADIUS_FACTOR = 0.26; // sphere radius as fraction of viewport
+const CENTER_Y_FACTOR = 0.61; // sphere center sits below the hero copy
 
 // Cursor spotlight: dots within this screen radius brighten, grow and
 // gather toward the pointer
@@ -25,6 +27,7 @@ attribute float a_size;    // 0.5 - 2.4 relative dot size
 attribute vec2 a_ramp;     // x: phase, y: speed of white<->blue drift
 
 uniform vec2 u_resolution; // canvas size in css px
+uniform vec2 u_center;     // sphere center in css px
 uniform float u_dpr;
 uniform float u_rotation;
 uniform float u_cosTilt;
@@ -54,8 +57,7 @@ void main() {
   float y = rx * u_sinTilt + a_pos.y * u_cosTilt;
 
   float scale = PERSPECTIVE / (PERSPECTIVE + z);
-  vec2 center = u_resolution * 0.5;
-  vec2 px = center + vec2(x, y) * u_radius * scale;
+  vec2 px = u_center + vec2(x, y) * u_radius * scale;
 
   float depth = (1.0 - z) * 0.5; // 0 back -> 1 front
   float lit = max(0.0, dot(vec3(x, y, z), LIGHT));
@@ -208,6 +210,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
 
     const uniforms = {
       resolution: gl.getUniformLocation(program, "u_resolution"),
+      center: gl.getUniformLocation(program, "u_center"),
       dpr: gl.getUniformLocation(program, "u_dpr"),
       rotation: gl.getUniformLocation(program, "u_rotation"),
       cosTilt: gl.getUniformLocation(program, "u_cosTilt"),
@@ -267,6 +270,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       canvas.height = height * dpr;
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.uniform2f(uniforms.resolution, width, height);
+      gl.uniform2f(uniforms.center, width / 2, height * CENTER_Y_FACTOR);
       gl.uniform1f(uniforms.dpr, dpr);
     };
 
@@ -274,8 +278,8 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       const p = reduceMotion ? 0 : progress.get();
       gl.clear(gl.COLOR_BUFFER_BIT);
 
-      // Zoom: sphere radius grows from ~40% of viewport to well past it.
-      const baseRadius = Math.min(width, height) * 0.4;
+      // Zoom: sphere radius grows from its resting size to well past it.
+      const baseRadius = Math.min(width, height) * RADIUS_FACTOR;
       const fade = 1 - Math.max(0, (p - 0.55) / 0.45); // dissolve near the end
       if (fade <= 0.01) return;
 
