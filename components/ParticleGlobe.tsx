@@ -6,29 +6,30 @@
 import { useEffect, useRef } from "react";
 import type { MotionValue } from "framer-motion";
 
-const MAX_PARTICLES = 7000;
+const MAX_PARTICLES = 14000;
 const ROTATION_SPEED = 0.0038;
 const AXIS_TILT = -0.28; // radians, tips the globe like a planet
 
-// Blue-white palette, weighted toward the pale tones
-const PALETTE = [
-  "255, 255, 255",
-  "233, 240, 255",
-  "169, 196, 255",
-  "126, 155, 255",
-  "91, 121, 227",
-];
+// Color ramp endpoints: white ↔ electric blue. Each particle drifts
+// back and forth along this ramp continuously.
+const RAMP_FROM = { r: 255, g: 255, b: 255 };
+const RAMP_TO = { r: 61, g: 122, b: 255 };
+const RAMP_STEPS = 9;
 
 // Light comes from the top-right-front, matching the reference highlight
 const LIGHT = { x: 0.5, y: -0.65, z: 0.57 };
+
+// Cursor spotlight: dots within this screen radius brighten and grow
+const POINTER_RADIUS = 190;
+const POINTER_EASE = 0.12;
 
 type Particle = {
   x: number;
   y: number;
   z: number;
   size: number; // 0.5–2.4 relative dot size
-  color: number; // palette index
-  twinkle: number; // phase offset for subtle shimmer
+  rampPhase: number; // where on the white↔blue ramp this dot starts
+  rampSpeed: number; // how fast it drifts along the ramp
 };
 
 function buildParticles(count: number): Particle[] {
@@ -45,21 +46,22 @@ function buildParticles(count: number): Particle[] {
       y: y * shell,
       z: Math.sin(theta) * radius * shell,
       size: 0.5 + Math.random() * Math.random() * 1.9,
-      color: Math.min(
-        PALETTE.length - 1,
-        Math.floor(Math.random() * Math.random() * PALETTE.length)
-      ),
-      twinkle: Math.random() * Math.PI * 2,
+      rampPhase: Math.random() * Math.PI * 2,
+      rampSpeed: 0.4 + Math.random() * 0.9,
     });
   }
   return particles;
 }
 
-// Pre-render one soft glow sprite per palette color; drawImage is far
+// Pre-render one soft glow sprite per ramp step; drawImage is far
 // cheaper than per-dot arc + gradient at this particle count.
 function buildSprites(): HTMLCanvasElement[] {
   const SPRITE = 32;
-  return PALETTE.map((rgb) => {
+  return Array.from({ length: RAMP_STEPS }, (_, i) => {
+    const t = i / (RAMP_STEPS - 1);
+    const rgb = `${Math.round(RAMP_FROM.r + (RAMP_TO.r - RAMP_FROM.r) * t)}, ${Math.round(
+      RAMP_FROM.g + (RAMP_TO.g - RAMP_FROM.g) * t
+    )}, ${Math.round(RAMP_FROM.b + (RAMP_TO.b - RAMP_FROM.b) * t)}`;
     const c = document.createElement("canvas");
     c.width = SPRITE;
     c.height = SPRITE;
@@ -102,7 +104,7 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     // Density scales with viewport so phones draw a fraction of the dots
     const area = canvas.clientWidth * canvas.clientHeight;
     const particles = buildParticles(
-      Math.min(MAX_PARTICLES, Math.max(1200, Math.floor(area / 190)))
+      Math.min(MAX_PARTICLES, Math.max(2400, Math.floor(area / 95)))
     );
     const sprites = buildSprites();
     const cosTilt = Math.cos(AXIS_TILT);
@@ -114,6 +116,29 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     let width = 0;
     let height = 0;
     let dpr = 1;
+
+    // Cursor spotlight state — eased toward the real pointer each frame
+    const pointer = { x: -9999, y: -9999, active: false };
+    const eased = { x: -9999, y: -9999 };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType !== "mouse") return;
+      const rect = canvas.getBoundingClientRect();
+      pointer.x = e.clientX - rect.left;
+      pointer.y = e.clientY - rect.top;
+      if (!pointer.active) {
+        // First contact: snap the eased position so the glow doesn't fly in
+        eased.x = pointer.x;
+        eased.y = pointer.y;
+        pointer.active = true;
+      }
+    };
+
+    const onPointerLeave = () => {
+      pointer.active = false;
+      pointer.x = -9999;
+      pointer.y = -9999;
+    };
 
     const resize = () => {
       // Soft glow sprites don't need retina sharpness; 1.5 keeps fill cheap
@@ -140,6 +165,14 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
       const sinR = Math.sin(rotation);
       const perspective = 3;
 
+      // Ease the spotlight toward the pointer
+      if (pointer.active) {
+        eased.x += (pointer.x - eased.x) * POINTER_EASE;
+        eased.y += (pointer.y - eased.y) * POINTER_EASE;
+      }
+      const spotlight = pointer.active && !reduceMotion;
+      const pointerR2 = POINTER_RADIUS * POINTER_RADIUS;
+
       for (const particle of particles) {
         // Spin around Y, then tilt the whole axis around Z
         const rx = particle.x * cosR - particle.z * sinR;
@@ -158,22 +191,33 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
         const depth = (1 - z) / 2; // 0 back → 1 front
         // Lambert-ish shading toward the light direction
         const lit = Math.max(0, x * LIGHT.x + y * LIGHT.y + z * LIGHT.z);
-        const shimmer = reduceMotion
-          ? 1
-          : 0.9 + 0.1 * Math.sin(time * 1.4 + particle.twinkle);
+
+        // Cursor spotlight: smooth falloff, front hemisphere reacts most
+        let boost = 0;
+        if (spotlight) {
+          const dx = px - eased.x;
+          const dy = py - eased.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < pointerR2) {
+            const falloff = 1 - Math.sqrt(d2) / POINTER_RADIUS;
+            boost = falloff * falloff * (0.35 + depth * 0.65);
+          }
+        }
+
+        // Continuous white ↔ electric-blue drift, one sprite per ramp step
+        const ramp =
+          (Math.sin(time * particle.rampSpeed + particle.rampPhase) + 1) / 2;
+        const sprite =
+          sprites[Math.round(ramp * (RAMP_STEPS - 1) * (1 - boost))];
+
         const alpha =
-          (0.42 + depth * 0.45 + lit * 0.6) * shimmer * fade;
+          (0.42 + depth * 0.45 + lit * 0.6) * fade + boost * 0.8;
         if (alpha <= 0.02) continue;
 
-        const size = (1.3 + lit * 1.4) * particle.size * scale;
+        const size =
+          (1.3 + lit * 1.4) * particle.size * scale * (1 + boost * 1.1);
         ctx.globalAlpha = Math.min(alpha, 1);
-        ctx.drawImage(
-          sprites[particle.color],
-          px - size,
-          py - size,
-          size * 2,
-          size * 2
-        );
+        ctx.drawImage(sprite, px - size, py - size, size * 2, size * 2);
       }
       ctx.globalAlpha = 1;
 
@@ -202,11 +246,18 @@ export default function ParticleGlobe({ progress }: ParticleGlobeProps) {
     draw();
     observer.observe(canvas);
     window.addEventListener("resize", resize);
+    window.addEventListener("pointermove", onPointerMove);
+    document.documentElement.addEventListener("pointerleave", onPointerLeave);
 
     return () => {
       cancelAnimationFrame(rafId);
       observer.disconnect();
       window.removeEventListener("resize", resize);
+      window.removeEventListener("pointermove", onPointerMove);
+      document.documentElement.removeEventListener(
+        "pointerleave",
+        onPointerLeave
+      );
     };
   }, [progress]);
 
